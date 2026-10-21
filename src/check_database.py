@@ -19,9 +19,15 @@ def check_database(db_path: Path) -> bool:
                 bad_rows = con.execute(sql_cmd).fetchone()[0]
 
                 if bad_rows:
-                    logger.warning(f"Failed database check: {desc}. Found {bad_rows}")
+                    logger.warning(f"Uncompleted database check: {desc}. Found {bad_rows}")
                 else:
                     logger.info(f"Passed database check: {desc}")
+
+            for desc, sql_cmd in TRANSFERMARTK_DB_CHECKS['infos'].items():
+                info = con.execute(sql_cmd).fetchone()
+
+                if info:
+                    logger.info(f"Info: {desc}: {info}")
 
     except duckdb.Error as err:
         logger.error(f"Unable to access database at {db_path.absolute()}: {err}")

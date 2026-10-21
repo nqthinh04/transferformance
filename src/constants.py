@@ -109,8 +109,95 @@ FROM (
 )
 """,
     },
-
     "warnings": {
-        
-    }
+        "Player missing DOB": """
+SELECT COUNT(*) AS player_missing_dob
+FROM players p
+WHERE p.date_of_birth IS NULL
+""",
+        "Player missing position": """
+SELECT COUNT(*) AS player_missing_position
+FROM players p
+WHERE p.position IS NULL
+""",
+        "Player's valuation being NULL or below zero": """
+SELECT COUNT(*) AS invalid_valuation
+FROM player_valuations v
+WHERE v.market_value_in_eur IS NULL
+""",
+        "Minutes played of a player's appearance being below zero": """
+SELECT COUNT(*) AS invalid_minutes_played
+FROM appearances a
+WHERE a.minutes_played < 0
+""",
+        "Player's valuation date being in the future": """
+SELECT COUNT(*) AS future_valuation_date
+FROM player_valuations v
+WHERE v.date > current_date()
+""",
+        "Player valuation for a non-existent player": """
+SELECT COUNT(*) AS orphan_player_valuation
+FROM player_valuations v
+LEFT JOIN players p
+ON v.player_id = p.player_id
+WHERE p.player_id IS NULL
+""",
+        "Player appearance for a non-existent player": """
+SELECT COUNT(*) AS orphan_player_appearance
+FROM appearances a
+LEFT JOIN players p
+ON a.player_id = p.player_id
+WHERE p.player_id IS NULL
+""",
+        "Player's appearance date not matching game's date": """
+SELECT count(*) AS date_mismatched
+FROM appearances a
+JOIN games g 
+ON TRY_CAST(g.game_id AS INTEGER) = a.game_id
+WHERE a.date <> g.date
+""",
+    },
+    "infos": {
+        "Latest valuation date": """
+SELECT max(v.date) AS latest_valuation_date
+FROM player_valuations v
+""",
+        "Latest game date": """
+SELECT max(g.date) AS latest_game_date
+FROM games g
+""",
+        "Valuations per competition": """
+SELECT c.name AS competition,
+       COUNT(*) AS valuations
+FROM player_valuations v
+LEFT JOIN competitions c
+       ON c.competition_id = v.player_club_domestic_competition_id
+GROUP BY c.name
+ORDER BY valuations DESC
+""",
+        "Valuation per player (min, median, max)": """
+SELECT 
+    MIN(n)    AS min_valuations,
+    MEDIAN(n) AS median_valuations,
+    MAX(n)    AS max_valuations
+FROM (
+    SELECT player_id, COUNT(*) AS n
+    FROM player_valuations
+    GROUP BY player_id
+)
+""",
+        "Players with a valuation but with zero appearance": """
+SELECT COUNT(*) AS players_without_appearances
+FROM (
+    SELECT DISTINCT player_id 
+    FROM player_valuations
+) v
+LEFT JOIN (
+    SELECT DISTINCT player_id 
+    FROM appearances
+) a
+ON a.player_id = v.player_id
+WHERE a.player_id IS NULL
+""",
+    },
 }
