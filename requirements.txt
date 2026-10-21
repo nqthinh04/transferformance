@@ -1,0 +1,3 @@
+duckdb
+loguru
+requests
