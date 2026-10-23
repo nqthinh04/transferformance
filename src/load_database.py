@@ -1,7 +1,7 @@
 from pathlib import Path
 from loguru import logger
 import requests
-from configs import URL_DB, HEADERS, CHUNK_SIZE
+from configs import URL_DB, DB_SAVE_PATH, HEADERS, CHUNK_SIZE
 
 def download_database(url: str, save_path: Path, cached: bool = True) -> bool:
     if save_path.exists() and save_path.stat().st_size > 0 and cached:
@@ -32,4 +32,4 @@ def download_database(url: str, save_path: Path, cached: bool = True) -> bool:
 
 
 if __name__ == "__main__":
-    download_database(URL_DB, Path("./data/raw/transfermarkt.duckdb"))
+    download_database(URL_DB, DB_SAVE_PATH)

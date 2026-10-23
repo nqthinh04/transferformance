@@ -1,7 +1,8 @@
 import duckdb
 from pathlib import Path
 from loguru import logger
-from constants import TRANSFERMARTK_DB_CHECKS
+from src.constants import TRANSFERMARTK_DB_CHECKS
+from src.configs import DB_SAVE_PATH
 
 def check_database(db_path: Path) -> bool:
     try:
@@ -15,11 +16,14 @@ def check_database(db_path: Path) -> bool:
                 else:
                     logger.info(f"Passed database check: {desc}")
 
+            cnt_warnings = 0
+
             for desc, sql_cmd in TRANSFERMARTK_DB_CHECKS['warnings'].items():
                 bad_rows = con.execute(sql_cmd).fetchone()[0]
 
                 if bad_rows:
-                    logger.warning(f"Uncompleted database check: {desc}. Found {bad_rows}")
+                    logger.warning(f"Failed database check: {desc}. Found {bad_rows}")
+                    cnt_warnings += 1
                 else:
                     logger.info(f"Passed database check: {desc}")
 
@@ -33,7 +37,8 @@ def check_database(db_path: Path) -> bool:
         logger.error(f"Unable to access database at {db_path.absolute()}: {err}")
         return False
 
-    logger.success("All database checks passed")
+    logger.info(f"Database check completed with {cnt_warnings} warnings(s).")
     return True
 
-check_database(Path("data/raw/transfermarkt.duckdb"))
+if __name__ == "__main__":
+    check_database(Path(DB_SAVE_PATH))

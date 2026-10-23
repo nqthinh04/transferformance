@@ -166,15 +166,6 @@ FROM player_valuations v
 SELECT max(g.date) AS latest_game_date
 FROM games g
 """,
-        "Valuations per competition": """
-SELECT c.name AS competition,
-       COUNT(*) AS valuations
-FROM player_valuations v
-LEFT JOIN competitions c
-       ON c.competition_id = v.player_club_domestic_competition_id
-GROUP BY c.name
-ORDER BY valuations DESC
-""",
         "Valuation per player (min, median, max)": """
 SELECT 
     MIN(n)    AS min_valuations,
