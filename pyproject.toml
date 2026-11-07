@@ -1,0 +1,25 @@
+[project]
+name = "transferformance"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Quoc-Thinh NGUYEN", email = "nqthinh04@proton.me" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "duckdb>=2.0.0",
+    "ipykernel>=7.4.0",
+    "loguru>=0.7.3",
+    "matplotlib>=3.11.2",
+    "pandas>=3.1.1",
+    "requests>=2.34.2",
+    "seaborn>=0.13.2",
+]
+
+[project.scripts]
+transferformance = "transferformance:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
