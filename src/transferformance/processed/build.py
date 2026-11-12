@@ -20,6 +20,7 @@ DAYS_IN_YEAR = 365.25
 MINUTES_PER_MATCH = 90
 SEASON_FIRST_MONTH = 7
 
+
 class BuildError(Exception):
     pass
 

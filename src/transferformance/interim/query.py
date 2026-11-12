@@ -51,37 +51,34 @@ def get_default_cutoff_date(
     return min_date + timedelta(days=window_in_days)
 
 
-def _sql_list(values: tuple[str, ...]) -> str:
-    return ", ".join(f"'{v}'" for v in values)
+def _minutes_where(condition: str) -> str:
+    return f"COALESCE(SUM(minutes_played) FILTER (WHERE {condition}), 0)::INTEGER"
 
 
 def _window_features(params: InterimParams) -> dict[str, str]:
-    s = f"{params.window_in_days}d"
+    window_in_days_str = f"{params.window_in_days}d"
 
     if params.goals_conceded_while_on_pitch:
-        conceded = (
+        goals_conceded = (
             f"SUM(opponent_goals * minutes_played / {params.full_match_minutes}.0)"
         )
     else:
-        conceded = "SUM(opponent_goals)::INTEGER"
-
-    def minutes_where(condition: str) -> str:
-        return f"COALESCE(SUM(minutes_played) FILTER (WHERE {condition}), 0)::INTEGER"
+        goals_conceded = "SUM(opponent_goals)::INTEGER"
 
     return {
         "n_appearances": "COUNT(*)",
-        f"minutes_per_{s}": "SUM(minutes_played)::INTEGER",
-        f"goals_per_{s}": "SUM(goals)::INTEGER",
-        f"assists_per_{s}": "SUM(assists)::INTEGER",
-        f"yellow_cards_per_{s}": "SUM(yellow_cards)::INTEGER",
-        f"red_cards_per_{s}": "SUM(red_cards)::INTEGER",
-        f"goals_conceded_per_{s}": conceded,
-        f"clean_sheets_per_{s}": "SUM(is_clean_sheet)::INTEGER",
-        f"league_minutes_per_{s}": minutes_where(
+        f"minutes_per_{window_in_days_str}": "SUM(minutes_played)::INTEGER",
+        f"goals_per_{window_in_days_str}": "SUM(goals)::INTEGER",
+        f"assists_per_{window_in_days_str}": "SUM(assists)::INTEGER",
+        f"yellow_cards_per_{window_in_days_str}": "SUM(yellow_cards)::INTEGER",
+        f"red_cards_per_{window_in_days_str}": "SUM(red_cards)::INTEGER",
+        f"goals_conceded_per_{window_in_days_str}": goals_conceded,
+        f"clean_sheets_per_{window_in_days_str}": "SUM(is_clean_sheet)::INTEGER",
+        f"league_minutes_per_{window_in_days_str}": _minutes_where(
             f"competition_type = '{params.league_type}'"
         ),
-        f"cup_minutes_per_{s}": minutes_where(
-            f"competition_type IN ({_sql_list(params.cup_types)})"
+        f"cup_minutes_per_{window_in_days_str}": _minutes_where(
+            f"""competition_type IN ({", ".join(f"'{t}'" for t in params.cup_types)})"""
         ),
     }
 
