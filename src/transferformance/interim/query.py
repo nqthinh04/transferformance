@@ -53,6 +53,8 @@ def build_query(params: InterimParams) -> str:
         valid_appearances AS (
             SELECT
                 a.player_id,
+                a.game_id,
+                a.player_club_id,
                 a.date::DATE AS "date",
                 a.competition_id,
                 COALESCE(c.type, 'unknown') AS "competition_type",
@@ -60,9 +62,17 @@ def build_query(params: InterimParams) -> str:
                 a.goals,
                 a.assists,
                 a.yellow_cards,
-                a.red_cards
+                a.red_cards,
+                COALESCE(cg.opponent_goals, 0) AS opponent_goals,
+                CAST(
+                    (cg.opponent_goals = 0) AND (a.minutes_played >= 90)
+                    AS INTEGER
+                ) AS is_clean_sheet
             FROM appearances a
                 LEFT JOIN competitions c USING (competition_id)
+                LEFT JOIN club_games cg
+                    ON  cg.game_id = a.game_id
+                    AND cg.club_id = a.player_club_id
             WHERE a.minutes_played BETWEEN 1 AND {params.max_appearance_minutes}
         ),
         window_appearances AS (
@@ -75,7 +85,9 @@ def build_query(params: InterimParams) -> str:
                 va.goals,
                 va.assists,
                 va.yellow_cards,
-                va.red_cards
+                va.red_cards,
+                va.opponent_goals,
+                va.is_clean_sheet
             FROM valid_valuations AS vv
                 JOIN valid_appearances AS va
                     ON (va.player_id = vv.player_id)
@@ -92,6 +104,8 @@ def build_query(params: InterimParams) -> str:
                 SUM(assists)::INTEGER AS "assists_per_{params.window_in_days}d",
                 SUM(yellow_cards)::INTEGER AS "yellow_cards_per_{params.window_in_days}d",
                 SUM(red_cards)::INTEGER AS "red_cards_per_{params.window_in_days}d",
+                SUM(opponent_goals)::INTEGER AS "goals_conceded_per_{params.window_in_days}d",
+                SUM(is_clean_sheet)::INTEGER AS "clean_sheets_per_{params.window_in_days}d",
                 COALESCE(SUM(minutes_played) FILTER (WHERE competition_type = '{params.league_type}'), 0)::INTEGER
                     AS "league_minutes_per_{params.window_in_days}d",
                 COALESCE(SUM(minutes_played) FILTER (WHERE competition_type IN ({cup_types_sql})), 0)::INTEGER
