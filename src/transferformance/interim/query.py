@@ -1,133 +1,178 @@
+from transferformance.configs import DEFAULT_WINDOW_IN_DAYS
+
 from dataclasses import dataclass
 from datetime import date, timedelta
+
 import duckdb
 
 
 @dataclass(frozen=True)
 class InterimParams:
     cutoff_date: date
-    window_in_days: int = 365
+    window_in_days: int = DEFAULT_WINDOW_IN_DAYS
 
     min_player_age: int = 15
     min_player_height_in_cm: int = 150
     max_appearance_minutes: int = 120
+    full_match_minutes: int = 90
 
     league_type: str = "domestic_league"
     cup_types: tuple[str, ...] = ("domestic_cup", "international_cup")
 
+    goals_conceded_while_on_pitch: bool = False
 
-def get_default_cutoff_date(con: duckdb.DuckDBPyConnection, window_in_days: int = 365):
-    (min_appearance_date,) = con.sql("""
-        SELECT CAST(MIN(date) AS DATE)
-        FROM appearances
-    """).fetchall()[0]
+    def __post_init__(self):
+        if self.window_in_days <= 0:
+            raise ValueError("`window_in_days` must be positive")
+        if not self.cup_types:
+            raise ValueError("`cup_types` must not be empty")
 
-    if not min_appearance_date:
+
+_FINAL_SELECT = """
+    SELECT
+        vv.*,
+        w.* EXCLUDE (player_id, date),
+        COALESCE(ml.league_id, 'other') AS league_id
+    FROM valid_valuations vv
+        JOIN window_features w USING (player_id, date)
+        LEFT JOIN main_league ml USING (player_id, date)
+"""
+
+
+def get_default_cutoff_date(
+    con: duckdb.DuckDBPyConnection, window_in_days: int = DEFAULT_WINDOW_IN_DAYS
+) -> date:
+    (min_date,) = con.sql("SELECT CAST(MIN(date) AS DATE) FROM appearances").fetchall()[
+        0
+    ]
+
+    if not min_date:
         raise ValueError("The `appearances` table is empty")
+    return min_date + timedelta(days=window_in_days)
 
-    return min_appearance_date + timedelta(days=window_in_days)
+
+def _sql_list(values: tuple[str, ...]) -> str:
+    return ", ".join(f"'{v}'" for v in values)
+
+
+def _window_features(params: InterimParams) -> dict[str, str]:
+    s = f"{params.window_in_days}d"
+
+    if params.goals_conceded_while_on_pitch:
+        conceded = (
+            f"SUM(opponent_goals * minutes_played / {params.full_match_minutes}.0)"
+        )
+    else:
+        conceded = "SUM(opponent_goals)::INTEGER"
+
+    def minutes_where(condition: str) -> str:
+        return f"COALESCE(SUM(minutes_played) FILTER (WHERE {condition}), 0)::INTEGER"
+
+    return {
+        "n_appearances": "COUNT(*)",
+        f"minutes_per_{s}": "SUM(minutes_played)::INTEGER",
+        f"goals_per_{s}": "SUM(goals)::INTEGER",
+        f"assists_per_{s}": "SUM(assists)::INTEGER",
+        f"yellow_cards_per_{s}": "SUM(yellow_cards)::INTEGER",
+        f"red_cards_per_{s}": "SUM(red_cards)::INTEGER",
+        f"goals_conceded_per_{s}": conceded,
+        f"clean_sheets_per_{s}": "SUM(is_clean_sheet)::INTEGER",
+        f"league_minutes_per_{s}": minutes_where(
+            f"competition_type = '{params.league_type}'"
+        ),
+        f"cup_minutes_per_{s}": minutes_where(
+            f"competition_type IN ({_sql_list(params.cup_types)})"
+        ),
+    }
+
+
+def _valid_valuations(params: InterimParams) -> str:
+    return f"""
+        SELECT
+            v.player_id,
+            v.date::DATE AS date,
+            v.market_value_in_eur,
+            p.date_of_birth::DATE AS date_of_birth,
+            p.position,
+            p.height_in_cm,
+            COALESCE(p.foot, 'unknown') AS foot
+        FROM player_valuations v
+            JOIN players p USING (player_id)
+        WHERE v.date::DATE >= DATE '{params.cutoff_date.isoformat()}'
+          AND v.market_value_in_eur > 0
+          AND DATE_SUB('YEAR', p.date_of_birth::DATE, v.date::DATE) >= {params.min_player_age}
+          AND p.position <> 'Missing'
+          AND p.height_in_cm > {params.min_player_height_in_cm}
+    """
+
+
+def _valid_appearances(params: InterimParams) -> str:
+    return f"""
+        SELECT
+            a.player_id,
+            a.date::DATE AS match_date,
+            a.competition_id,
+            COALESCE(c.type, 'unknown') AS competition_type,
+            a.minutes_played,
+            a.goals,
+            a.assists,
+            a.yellow_cards,
+            a.red_cards,
+            cg.opponent_goals,
+            (cg.opponent_goals = 0
+                AND a.minutes_played >= {params.full_match_minutes})::INTEGER AS is_clean_sheet
+        FROM appearances a
+            LEFT JOIN competitions c USING (competition_id)
+            JOIN club_games cg
+              ON cg.game_id = a.game_id AND cg.club_id = a.player_club_id
+        WHERE a.minutes_played BETWEEN 1 AND {params.max_appearance_minutes}
+    """
+
+
+def _window_appearances(params: InterimParams) -> str:
+    return f"""
+        SELECT vv.player_id, vv.date, va.* EXCLUDE (player_id, match_date)
+        FROM valid_valuations vv
+            JOIN valid_appearances va
+              ON va.player_id = vv.player_id
+             AND va.match_date >= vv.date - INTERVAL {params.window_in_days} DAY
+             AND va.match_date <  vv.date
+    """
+
+
+def _window_features_cte(params: InterimParams) -> str:
+    aggs = ",\n".join(
+        f'{expr} AS "{name}"' for name, expr in _window_features(params).items()
+    )
+    return f"""
+        SELECT player_id, date, {aggs}
+        FROM window_appearances
+        GROUP BY player_id, date
+    """
+
+
+def _main_league(params: InterimParams) -> str:
+    return f"""
+        SELECT player_id, date, competition_id AS league_id
+        FROM window_appearances
+        WHERE competition_type = '{params.league_type}'
+        GROUP BY player_id, date, competition_id
+        QUALIFY ROW_NUMBER() OVER (
+            PARTITION BY player_id, date
+            ORDER BY SUM(minutes_played) DESC, competition_id
+        ) = 1
+    """
 
 
 def build_query(params: InterimParams) -> str:
-    cup_types_sql = ", ".join(f"'{cup_type}'" for cup_type in params.cup_types)
+    ctes = {
+        "valid_valuations": _valid_valuations(params),
+        "valid_appearances": _valid_appearances(params),
+        "window_appearances": _window_appearances(params),
+        "window_features": _window_features_cte(params),
+        "main_league": _main_league(params),
+    }
 
-    return f"""
-        WITH valid_valuations AS (
-            SELECT
-                v.player_id,
-                v.date::DATE AS "date",
-                v.market_value_in_eur,
-                p.date_of_birth::DATE AS "date_of_birth",
-                p.position,
-                p.height_in_cm,
-                COALESCE(p.foot, 'unknown') AS "foot"
-            FROM player_valuations v
-                JOIN players p USING (player_id)
-            WHERE
-                (date >= DATE '{params.cutoff_date.isoformat()}')
-                AND (v.market_value_in_eur > 0)
-                AND (DATE_SUB('YEAR', p.date_of_birth::DATE, v.date::DATE) >= {params.min_player_age})
-                AND (p.position <> 'Missing')
-                AND (p.height_in_cm > {params.min_player_height_in_cm})
-        ),
-        valid_appearances AS (
-            SELECT
-                a.player_id,
-                a.game_id,
-                a.player_club_id,
-                a.date::DATE AS "date",
-                a.competition_id,
-                COALESCE(c.type, 'unknown') AS "competition_type",
-                a.minutes_played,
-                a.goals,
-                a.assists,
-                a.yellow_cards,
-                a.red_cards,
-                COALESCE(cg.opponent_goals, 0) AS opponent_goals,
-                CAST(
-                    (cg.opponent_goals = 0) AND (a.minutes_played >= 90)
-                    AS INTEGER
-                ) AS is_clean_sheet
-            FROM appearances a
-                LEFT JOIN competitions c USING (competition_id)
-                LEFT JOIN club_games cg
-                    ON  cg.game_id = a.game_id
-                    AND cg.club_id = a.player_club_id
-            WHERE a.minutes_played BETWEEN 1 AND {params.max_appearance_minutes}
-        ),
-        window_appearances AS (
-            SELECT
-                vv.player_id,
-                vv.date,
-                va.competition_id,
-                va.competition_type,
-                va.minutes_played,
-                va.goals,
-                va.assists,
-                va.yellow_cards,
-                va.red_cards,
-                va.opponent_goals,
-                va.is_clean_sheet
-            FROM valid_valuations AS vv
-                JOIN valid_appearances AS va
-                    ON (va.player_id = vv.player_id)
-                    AND va.date >= vv.date - INTERVAL {params.window_in_days} DAY
-                    AND va.date < vv.date
-        ),
-        window_{params.window_in_days}d AS (
-            SELECT
-                player_id,
-                date,
-                COUNT(*) AS "n_appearances",
-                SUM(minutes_played)::INTEGER AS "minutes_per_{params.window_in_days}d",
-                SUM(goals)::INTEGER AS "goals_per_{params.window_in_days}d",
-                SUM(assists)::INTEGER AS "assists_per_{params.window_in_days}d",
-                SUM(yellow_cards)::INTEGER AS "yellow_cards_per_{params.window_in_days}d",
-                SUM(red_cards)::INTEGER AS "red_cards_per_{params.window_in_days}d",
-                SUM(opponent_goals)::INTEGER AS "goals_conceded_per_{params.window_in_days}d",
-                SUM(is_clean_sheet)::INTEGER AS "clean_sheets_per_{params.window_in_days}d",
-                COALESCE(SUM(minutes_played) FILTER (WHERE competition_type = '{params.league_type}'), 0)::INTEGER
-                    AS "league_minutes_per_{params.window_in_days}d",
-                COALESCE(SUM(minutes_played) FILTER (WHERE competition_type IN ({cup_types_sql})), 0)::INTEGER
-                    AS "cup_minutes_per_{params.window_in_days}d"
-            FROM window_appearances
-            GROUP BY player_id, date
-        ),
-        main_league AS (
-            SELECT player_id, date, ARG_MAX(competition_id, minutes) AS "league_id"
-            FROM (
-                SELECT player_id, date, competition_id, SUM(minutes_played) AS minutes
-                FROM window_appearances
-                WHERE competition_type = '{params.league_type}'
-                GROUP BY player_id, date, competition_id
-            )
-            GROUP BY player_id, date
-        )
-        SELECT
-            vv.*,
-            w.* EXCLUDE (player_id, date),
-            COALESCE(ml.league_id, 'other') AS "league_id"
-        FROM valid_valuations vv
-            JOIN window_{params.window_in_days}d AS w USING (player_id, date)
-            LEFT JOIN main_league AS ml USING (player_id, date)
-    """
+    sql_ctes = ",\n".join(f"{name} AS ({body})" for name, body in ctes.items())
+
+    return f"WITH {sql_ctes}\n{_FINAL_SELECT}"
