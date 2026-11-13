@@ -60,26 +60,26 @@ window_appearances AS (
             AND va.date >= vv.date - INTERVAL $window_in_days DAY
             AND va.date < vv.date
 ),
-window_amountd AS (
+window_$window_in_daysd AS (
     SELECT
         player_id,
         date,
         COUNT(*) AS "n_appearances",
-        SUM(minutes_played)::INTEGER AS "minutes_per_amountd",
-        SUM(goals)::INTEGER AS "goals_per_amountd",
-        SUM(assists)::INTEGER AS "assists_per_amountd",
-        SUM(yellow_cards)::INTEGER AS "yellow_cards_per_amountd",
-        SUM(red_cards)::INTEGER AS "red_cards_per_amountd",
-        $goals_conceded AS "goals_conceded_per_amountd",
-        SUM(is_clean_sheet)::INTEGER AS "clean_sheets_per_amountd",
+        SUM(minutes_played)::INTEGER AS "minutes_per_$window_in_daysd",
+        SUM(goals)::INTEGER AS "goals_per_$window_in_daysd",
+        SUM(assists)::INTEGER AS "assists_per_$window_in_daysd",
+        SUM(yellow_cards)::INTEGER AS "yellow_cards_per_$window_in_daysd",
+        SUM(red_cards)::INTEGER AS "red_cards_per_$window_in_daysd",
+        $goals_conceded AS "goals_conceded_per_$window_in_daysd",
+        SUM(is_clean_sheet)::INTEGER AS "clean_sheets_per_$window_in_daysd",
         COALESCE(
             SUM(minutes_played) FILTER (WHERE competition_type = $league_type),
             0
-        )::INTEGER AS "league_minutes_per_amountd",
+        )::INTEGER AS "league_minutes_per_$window_in_daysd",
         COALESCE(
             SUM(minutes_played) FILTER (WHERE competition_type IN ($cup_types)),
             0
-        )::INTEGER AS "cup_minutes_per_amountd"
+        )::INTEGER AS "cup_minutes_per_$window_in_daysd"
     FROM window_appearances
     GROUP BY player_id, date
 ),
@@ -102,5 +102,5 @@ SELECT
     w.* EXCLUDE (player_id, date),
     COALESCE(ml.league_id, 'other') AS "league_id"
 FROM valid_valuations vv
-    JOIN window_amountd AS w USING (player_id, date)
+    JOIN window_$window_in_daysd AS w USING (player_id, date)
     LEFT JOIN main_league AS ml USING (player_id, date)

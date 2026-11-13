@@ -5,7 +5,7 @@ import duckdb
 
 from transferformance.configs import DEFAULT_WINDOW_IN_DAYS, DIR_SRC_INTERIM
 
-INTERIM_QUERY_PATH = DIR_SRC_INTERIM / "interim.sql"
+INTERIM_QUERY_PATH = DIR_SRC_INTERIM / "query.sql"
 
 
 @dataclass(frozen=True)
@@ -58,7 +58,7 @@ def build_query(params: InterimParams) -> str:
     cup_types_sql = ", ".join(f"'{t}'" for t in params.cup_types)
 
     return (
-        template.replace("windowd", f"{params.window_in_days}d")
+        template.replace("$window_in_days", f"{params.window_in_days}")
         .replace("$cutoff_date", f"'{params.cutoff_date.isoformat()}'")
         .replace("$window_in_days", str(params.window_in_days))
         .replace("$min_player_age", str(params.min_player_age))

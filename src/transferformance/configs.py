@@ -10,7 +10,11 @@ PATH_PROCESSED_DATA = DIR_PROJECT_ROOT / "data" / "processed" / "processed.parqu
 DIR_PROCESSED_SPLITS = DIR_PROJECT_ROOT / "data" / "processed" / "splits"
 
 DIR_ROOT_MODEL = DIR_PROJECT_ROOT / "model"
-DIR_SRC = DIR_PROJECT_ROOT / "src" / "transferformance"
-DIR_SRC_INTERIM = DIR_SRC / "interim"
+
+DIR_SRC = DIR_PROJECT_ROOT / "src"
+DIR_SRC_MAIN = DIR_SRC / "transferformance"
+DIR_SRC_INTERIM = DIR_SRC_MAIN / "interim"
+DIR_SRC_APP = DIR_SRC / "app"
+DIR_SRC_APP_SERVING = DIR_SRC_APP / "serving"
 
 DEFAULT_WINDOW_IN_DAYS = 365
