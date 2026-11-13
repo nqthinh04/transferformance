@@ -1,9 +1,11 @@
-from transferformance.configs import DEFAULT_WINDOW_IN_DAYS
-
 from dataclasses import dataclass
 from datetime import date, timedelta
 
 import duckdb
+
+from transferformance.configs import DEFAULT_WINDOW_IN_DAYS, DIR_SRC_INTERIM
+
+INTERIM_QUERY_PATH = DIR_SRC_INTERIM / "interim.sql"
 
 
 @dataclass(frozen=True)
@@ -21,22 +23,11 @@ class InterimParams:
 
     goals_conceded_while_on_pitch: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.window_in_days <= 0:
             raise ValueError("`window_in_days` must be positive")
         if not self.cup_types:
             raise ValueError("`cup_types` must not be empty")
-
-
-_FINAL_SELECT = """
-    SELECT
-        vv.*,
-        w.* EXCLUDE (player_id, date),
-        COALESCE(ml.league_id, 'other') AS league_id
-    FROM valid_valuations vv
-        JOIN window_features w USING (player_id, date)
-        LEFT JOIN main_league ml USING (player_id, date)
-"""
 
 
 def get_default_cutoff_date(
@@ -51,125 +42,30 @@ def get_default_cutoff_date(
     return min_date + timedelta(days=window_in_days)
 
 
-def _minutes_where(condition: str) -> str:
-    return f"COALESCE(SUM(minutes_played) FILTER (WHERE {condition}), 0)::INTEGER"
-
-
-def _window_features(params: InterimParams) -> dict[str, str]:
-    window_in_days_str = f"{params.window_in_days}d"
-
+def _goals_conceded_expression(params: InterimParams) -> str:
     if params.goals_conceded_while_on_pitch:
-        goals_conceded = (
-            f"SUM(opponent_goals * minutes_played / {params.full_match_minutes}.0)"
-        )
-    else:
-        goals_conceded = "SUM(opponent_goals)::INTEGER"
-
-    return {
-        "n_appearances": "COUNT(*)",
-        f"minutes_per_{window_in_days_str}": "SUM(minutes_played)::INTEGER",
-        f"goals_per_{window_in_days_str}": "SUM(goals)::INTEGER",
-        f"assists_per_{window_in_days_str}": "SUM(assists)::INTEGER",
-        f"yellow_cards_per_{window_in_days_str}": "SUM(yellow_cards)::INTEGER",
-        f"red_cards_per_{window_in_days_str}": "SUM(red_cards)::INTEGER",
-        f"goals_conceded_per_{window_in_days_str}": goals_conceded,
-        f"clean_sheets_per_{window_in_days_str}": "SUM(is_clean_sheet)::INTEGER",
-        f"league_minutes_per_{window_in_days_str}": _minutes_where(
-            f"competition_type = '{params.league_type}'"
-        ),
-        f"cup_minutes_per_{window_in_days_str}": _minutes_where(
-            f"""competition_type IN ({", ".join(f"'{t}'" for t in params.cup_types)})"""
-        ),
-    }
-
-
-def _valid_valuations(params: InterimParams) -> str:
-    return f"""
-        SELECT
-            v.player_id,
-            v.date::DATE AS date,
-            v.market_value_in_eur,
-            p.date_of_birth::DATE AS date_of_birth,
-            p.position,
-            p.height_in_cm,
-            COALESCE(p.foot, 'unknown') AS foot
-        FROM player_valuations v
-            JOIN players p USING (player_id)
-        WHERE v.date::DATE >= DATE '{params.cutoff_date.isoformat()}'
-          AND v.market_value_in_eur > 0
-          AND DATE_SUB('YEAR', p.date_of_birth::DATE, v.date::DATE) >= {params.min_player_age}
-          AND p.position <> 'Missing'
-          AND p.height_in_cm > {params.min_player_height_in_cm}
-    """
-
-
-def _valid_appearances(params: InterimParams) -> str:
-    return f"""
-        SELECT
-            a.player_id,
-            a.date::DATE AS match_date,
-            a.competition_id,
-            COALESCE(c.type, 'unknown') AS competition_type,
-            a.minutes_played,
-            a.goals,
-            a.assists,
-            a.yellow_cards,
-            a.red_cards,
-            cg.opponent_goals,
-            (cg.opponent_goals = 0
-                AND a.minutes_played >= {params.full_match_minutes})::INTEGER AS is_clean_sheet
-        FROM appearances a
-            LEFT JOIN competitions c USING (competition_id)
-            JOIN club_games cg
-              ON cg.game_id = a.game_id AND cg.club_id = a.player_club_id
-        WHERE a.minutes_played BETWEEN 1 AND {params.max_appearance_minutes}
-    """
-
-
-def _window_appearances(params: InterimParams) -> str:
-    return f"""
-        SELECT vv.player_id, vv.date, va.* EXCLUDE (player_id, match_date)
-        FROM valid_valuations vv
-            JOIN valid_appearances va
-              ON va.player_id = vv.player_id
-             AND va.match_date >= vv.date - INTERVAL {params.window_in_days} DAY
-             AND va.match_date <  vv.date
-    """
-
-
-def _window_features_cte(params: InterimParams) -> str:
-    aggs = ",\n".join(
-        f'{expr} AS "{name}"' for name, expr in _window_features(params).items()
-    )
-    return f"""
-        SELECT player_id, date, {aggs}
-        FROM window_appearances
-        GROUP BY player_id, date
-    """
-
-
-def _main_league(params: InterimParams) -> str:
-    return f"""
-        SELECT player_id, date, competition_id AS league_id
-        FROM window_appearances
-        WHERE competition_type = '{params.league_type}'
-        GROUP BY player_id, date, competition_id
-        QUALIFY ROW_NUMBER() OVER (
-            PARTITION BY player_id, date
-            ORDER BY SUM(minutes_played) DESC, competition_id
-        ) = 1
-    """
+        return f"SUM(opponent_goals * minutes_played / {params.full_match_minutes}.0)"
+    return "SUM(opponent_goals)::INTEGER"
 
 
 def build_query(params: InterimParams) -> str:
-    ctes = {
-        "valid_valuations": _valid_valuations(params),
-        "valid_appearances": _valid_appearances(params),
-        "window_appearances": _window_appearances(params),
-        "window_features": _window_features_cte(params),
-        "main_league": _main_league(params),
-    }
+    if not INTERIM_QUERY_PATH.is_file():
+        raise FileNotFoundError(
+            f"Interim query template not found at {INTERIM_QUERY_PATH}"
+        )
 
-    sql_ctes = ",\n".join(f"{name} AS ({body})" for name, body in ctes.items())
+    template = INTERIM_QUERY_PATH.read_text()
+    cup_types_sql = ", ".join(f"'{t}'" for t in params.cup_types)
 
-    return f"WITH {sql_ctes}\n{_FINAL_SELECT}"
+    return (
+        template.replace("windowd", f"{params.window_in_days}d")
+        .replace("$cutoff_date", f"'{params.cutoff_date.isoformat()}'")
+        .replace("$window_in_days", str(params.window_in_days))
+        .replace("$min_player_age", str(params.min_player_age))
+        .replace("$min_player_height_in_cm", str(params.min_player_height_in_cm))
+        .replace("$max_appearance_minutes", str(params.max_appearance_minutes))
+        .replace("$full_match_minutes", str(params.full_match_minutes))
+        .replace("$league_type", f"'{params.league_type}'")
+        .replace("$cup_types", cup_types_sql)
+        .replace("$goals_conceded", _goals_conceded_expression(params))
+    )
