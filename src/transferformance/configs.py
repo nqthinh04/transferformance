@@ -8,5 +8,6 @@ PATH_RAW_DATA = DIR_PROJECT_ROOT / "data" / "raw" / "transfermarkt-datasets.duck
 PATH_INTERIM_DATA = DIR_PROJECT_ROOT / "data" / "interim" / "interim.parquet"
 PATH_PROCESSED_DATA = DIR_PROJECT_ROOT / "data" / "processed" / "processed.parquet"
 DIR_PROCESSED_SPLITS = DIR_PROJECT_ROOT / "data" / "processed" / "splits"
+DIR_MODEL = DIR_PROJECT_ROOT / "model"
 
 DEFAULT_WINDOW_IN_DAYS = 365

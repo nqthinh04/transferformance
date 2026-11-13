@@ -1,0 +1,79 @@
+{
+    "features_with_history": [
+        "position",
+        "foot",
+        "league_id",
+        "age",
+        "height_in_cm",
+        "n_appearances",
+        "minutes_per_365d",
+        "league_minutes_per_365d",
+        "cup_minutes_per_365d",
+        "avg_minutes_per_appearance",
+        "goals_per_365d",
+        "goals_per_90m",
+        "assists_per_365d",
+        "assists_per_90m",
+        "yellow_cards_per_365d",
+        "red_cards_per_365d",
+        "goals_conceded_per_365d",
+        "goals_conceded_per_90m",
+        "clean_sheets_per_365d",
+        "clean_sheets_per_90m",
+        "previous_valuation",
+        "days_since_previous_valuations"
+    ],
+    "features_without_history": [
+        "position",
+        "foot",
+        "league_id",
+        "age",
+        "height_in_cm",
+        "n_appearances",
+        "minutes_per_365d",
+        "league_minutes_per_365d",
+        "cup_minutes_per_365d",
+        "avg_minutes_per_appearance",
+        "goals_per_365d",
+        "goals_per_90m",
+        "assists_per_365d",
+        "assists_per_90m",
+        "yellow_cards_per_365d",
+        "red_cards_per_365d",
+        "goals_conceded_per_365d",
+        "goals_conceded_per_90m",
+        "clean_sheets_per_365d",
+        "clean_sheets_per_90m"
+    ],
+    "categories": {
+        "position": [
+            "Attack",
+            "Defender",
+            "Goalkeeper",
+            "Midfield"
+        ],
+        "foot": [
+            "both",
+            "left",
+            "right",
+            "unknown"
+        ],
+        "league_id": [
+            "BE1",
+            "DK1",
+            "ES1",
+            "FR1",
+            "GB1",
+            "GR1",
+            "IT1",
+            "L1",
+            "NL1",
+            "PO1",
+            "RU1",
+            "SC1",
+            "TR1",
+            "UKR1",
+            "other"
+        ]
+    }
+}

@@ -1,0 +1,22 @@
+{
+    "delta_params": {
+        "learning_rate": 0.0329357197051579,
+        "num_leaves": 84,
+        "min_data_in_leaf": 34,
+        "feature_fraction": 0.6638564410469625,
+        "bagging_fraction": 0.8996565474294665,
+        "bagging_freq": 3,
+        "lambda_l1": 0.2356497982814396,
+        "lambda_l2": 0.8290147259134233
+    },
+    "no_hist_params": {
+        "learning_rate": 0.026701613920489246,
+        "num_leaves": 85,
+        "min_data_in_leaf": 280,
+        "feature_fraction": 0.9705491626921462,
+        "bagging_fraction": 0.7054730035569816,
+        "bagging_freq": 2,
+        "lambda_l1": 7.845633287615977e-06,
+        "lambda_l2": 0.0008770828581963284
+    }
+}
