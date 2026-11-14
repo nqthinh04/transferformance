@@ -23,7 +23,7 @@ class InterimParams:
 
     goals_conceded_while_on_pitch: bool = False
 
-    def __post_init__(self) -> None:
+    def __post_init__(self):
         if self.window_in_days <= 0:
             raise ValueError("`window_in_days` must be positive")
         if not self.cup_types:

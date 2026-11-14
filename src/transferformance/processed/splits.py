@@ -15,7 +15,7 @@ class SplitError(Exception):
     pass
 
 
-def build_splits(input_path: Path, output_dir: Path) -> None:
+def build_splits(input_path: Path, output_dir: Path):
     if not input_path.is_file():
         raise SplitError(
             f"Features not found at {input_path}, run the features step first"

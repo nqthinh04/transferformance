@@ -22,7 +22,7 @@ class BuildError(Exception):
 
 def _write_parquet(
     con: duckdb.DuckDBPyConnection, params: InterimParams, output_path: Path
-) -> None:
+):
     tmp_path = output_path.with_name(output_path.name + ".part")
     try:
         con.sql(build_query(params)).write_parquet(str(tmp_path))
@@ -35,7 +35,7 @@ def build_interim(
     input_path: Path,
     output_path: Path,
     cutoff_date: date | None = None,
-) -> None:
+):
     if not input_path.is_file():
         raise BuildError(
             f"Raw database not found at {input_path}, run the download step "

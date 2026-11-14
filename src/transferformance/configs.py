@@ -6,8 +6,6 @@ DIR_PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 PATH_RAW_DATA = DIR_PROJECT_ROOT / "data" / "raw" / "transfermarkt-datasets.duckdb"
 PATH_INTERIM_DATA = DIR_PROJECT_ROOT / "data" / "interim" / "interim.parquet"
-PATH_PROCESSED_DATA = DIR_PROJECT_ROOT / "data" / "processed" / "processed.parquet"
-DIR_PROCESSED_SPLITS = DIR_PROJECT_ROOT / "data" / "processed" / "splits"
 
 DIR_ROOT_MODEL = DIR_PROJECT_ROOT / "model"
 
@@ -16,5 +14,9 @@ DIR_SRC_MAIN = DIR_SRC / "transferformance"
 DIR_SRC_INTERIM = DIR_SRC_MAIN / "interim"
 DIR_SRC_APP = DIR_SRC / "app"
 DIR_SRC_APP_SERVING = DIR_SRC_APP / "serving"
+
+PATH_PROCESSED_DATA = DIR_SRC_APP / "serving" / "processed.parquet"
+DIR_PROCESSED_SPLITS = DIR_PROJECT_ROOT / "data" / "processed" / "splits"
+PATH_PREDICTION_DATA = DIR_SRC_APP / "serving" / "predictions.parquet"
 
 DEFAULT_WINDOW_IN_DAYS = 365
