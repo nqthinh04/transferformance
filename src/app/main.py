@@ -11,7 +11,9 @@ from rapidfuzz import fuzz, process
 from transferformance.configs import DIR_SRC_APP_SERVING
 from transferformance.model.inference import HybridLGBModel
 
-st.set_page_config(page_title="Transferformance", layout="wide")
+import streamlit as st
+
+st.set_page_config(page_title="Transferformance", layout="wide", page_icon="⚽")
 
 ORANGE = "#f59e0b"
 PALLETE = ["#00E5FF", "#FF2A6D", "#05FFA1", "#FFB703", "#7209B7"]
@@ -1126,13 +1128,11 @@ def page_about():
         """
         <div style="text-align: center; color: gray; font-size: 0.9em;">
             Made with love for the beautiful game ◆ <a href="https://www.linkedin.com/in/quoc-thinh-nguyen-238342395/" target="_blank">Quoc-Thinh NGUYEN</a> ◆
-            <a href="https://github.com/nqthinh04/transferformance" target="_blank">GitHub</a> ◆
-             <a href="nqthinh04@proton.me" target="_blank">Work email</a>
+            <a href="https://github.com/nqthinh04/transferformance" target="_blank">GitHub</a>
         </div>
         """,
         unsafe_allow_html=True,
     )
-
 
 ABOUT = st.Page(page_about, title="About")
 OVERVIEW = st.Page(page_overview, title="Overview", default=True)
