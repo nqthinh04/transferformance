@@ -893,6 +893,7 @@ def page_player():
                 },
             )
 
+
 def page_model():
     st.title("Model")
 
@@ -920,6 +921,14 @@ def page_model():
         covers the next valuation, on dates the model did not see during training.
         """)
 
+    st.subheader("Data splits")
+    st.markdown("""
+        The model was trained on valuations up to 30 June 2024, validated on valuations from 
+        1 July 2024 to 30 September 2024, and tested on valuations from 1 October 2024 to 31 
+        December 2024. The model was tuned on the validation split, so its scores are optimistic, 
+        while the test split was scored once at the end.
+    """)
+
     st.subheader("Scoring")
 
     st.markdown("""
@@ -944,9 +953,8 @@ def page_model():
         is already a strong baseline at a 20% median error. `lgb-hybrid-delta` brings
         that down to 13.61%, about a third lower, although the four models that use the
         previous value are close to each other and the delta model is ahead by less than
-        a percentage point. All four come in slightly low, while the baseline comes in
-        slightly high with much larger errors. These scores are from the validation
-        split.
+        a percentage point. All four come in  low, while the baseline comes in quite high 
+        with much larger errors. These scores are from the validation split.
 
         | Model | MedAPE % | Log RMSE | Bias |
         |---|:---:|:---:|:---:|
@@ -979,12 +987,13 @@ def page_model():
 
         The final model is a lightly tuned version of `lgb-hybrid-delta`. Early stopping
         and the Optuna search both used the validation split, so its scores are optimistic, 
-        while the test split was scored once at the end. Compared with validation, the median 
-        error moves by half a point, log RMSE rises about 9% (0.4015 to 0.4387), so the larger 
-        misses got a bit worse, and the bias goes from about 4% too low to about 6% too low. 
-        The test scores are still better than the baseline's 20% median error and 0.551 log RMSE, 
-        although those baseline numbers come from the validation split because it was not run again 
-        on test.
+        while the test split was scored once at the end. 
+        
+        Compared with validation, the median error moves by half a point, log RMSE rises about 
+        9% *(0.4015 to 0.4387)*, so the larger misses got a bit worse, and the bias goes from about 
+        4% too low to about 6% too low. The test scores are still better than the baseline's 20% 
+        median error and 0.551 log RMSE, although those baseline numbers come from the validation 
+        split because it was not run again on test.
 
         | Split | Model | MedAPE % | Log RMSE | Bias |
         |---|---|:---:|:---:|:---:|
@@ -1100,10 +1109,29 @@ def page_model():
 
 def page_about():
     st.title("About Transferformance")
+
     st.markdown("""
-        Transferformance is a tool for analyzing football player market values and transfer histories.
-        It leverages data from Transfermarkt and applies machine learning models to predict player valuations.
-        """)
+    Transferformance is a tool for analyzing football player market values and transfer histories. It applies machine learning models to estimate player valuations and track how they change over time.
+
+    The main data source is [transfermarkt-datasets](https://github.com/dcaribou/transfermarkt-datasets), created and maintained by [David Cereijo](https://github.com/dcaribou). This dataset collects and processes publicly available data from [Transfermarkt](https://www.transfermarkt.com/) and is distributed under the Creative Commons CC0 1.0 Public Domain Dedication. Transferformance uses the `.duckdb` version of the dataset hosted on Cloudflare R2.
+    """)
+
+    st.warning(
+        "**Note:** Updates to the dataset are currently paused. The data is current as of July 6, 2026, and includes the FIFA World Cup 2026 Group Stage.",
+        icon="⚠️",
+    )
+
+    st.markdown("---")
+    st.markdown(
+        """
+        <div style="text-align: center; color: gray; font-size: 0.9em;">
+            Made with love for the beautiful game ◆ <a href="https://www.linkedin.com/in/quoc-thinh-nguyen-238342395/" target="_blank">Quoc-Thinh NGUYEN</a> ◆
+            <a href="https://github.com/nqthinh04/transferformance" target="_blank">GitHub</a> ◆
+             <a href="nqthinh04@proton.me" target="_blank">Work email</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 ABOUT = st.Page(page_about, title="About")
@@ -1119,4 +1147,6 @@ with st.sidebar:
     st.page_link(SEARCH)
     st.page_link(MODEL)
     st.page_link(ABOUT)
+
+
 page.run()
