@@ -16,7 +16,7 @@ echo "==> 3. Syncing project dependencies with uv..."
 uv sync
 
 echo "==> 4. Running pipeline: Raw download..."
-uv run python -m transferformance.raw.download --refresh
+uv run python -m transferformance.raw.download
 
 echo "==> 5. Running pipeline: Interim build..."
 uv run python -m transferformance.interim.build

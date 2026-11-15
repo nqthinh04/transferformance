@@ -16,7 +16,7 @@ Write-Host "==> 3. Syncing project dependencies with uv..." -ForegroundColor Cya
 uv sync
 
 Write-Host "==> 4. Running pipeline: Raw download..." -ForegroundColor Cyan
-uv run python -m transferformance.raw.download --refresh
+uv run python -m transferformance.raw.download
 
 Write-Host "==> 5. Running pipeline: Interim build..." -ForegroundColor Cyan
 uv run python -m transferformance.interim.build

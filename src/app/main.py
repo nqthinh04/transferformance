@@ -728,6 +728,7 @@ def page_player():
     )
 
     in_model = pd.notna(p["in_model"]) and bool(p["in_model"])
+
     if in_model:
         st.warning(
             "**Note:** The model does not account for external factors like injuries, "
@@ -823,6 +824,7 @@ def page_player():
     transfers = read_serving_parquet("transfers", player_id)
 
     predictions_configs = {}
+
     if in_model:
         predictions = read_serving_parquet(
             "predictions", player_id, columns=["date", "predicted_value"]
@@ -987,6 +989,25 @@ def page_model():
         | `LightGBM` | **44.78** | **0.8326** | **-0.2833** |
         """)
 
+    st.subheader("Hyperparameter tuning")
+
+
+    st.markdown("""
+       The two models were tuned separately with Optuna, running 30 trials for each, 
+       and the table shows the best parameters from each search.
+
+        | Parameter | `lgb_delta` | `lgb_no_hist` |
+        |---|:---:|:---:|
+        | `learning_rate` | 0.0329 | 0.0267 |
+        | `num_leaves` | 84 | 85 |
+        | `min_data_in_leaf` | 34 | 280 |
+        | `feature_fraction` | 0.664 | 0.971 |
+        | `bagging_fraction` | 0.900 | 0.705 |
+        | `bagging_freq` | 3 | 2 |
+        | `lambda_l1` | 0.236 | 7.8e-06 |
+        | `lambda_l2` | 0.829 | 0.000877 |
+        """)
+
     st.markdown("""
         #### Held-out test
 
@@ -999,7 +1020,7 @@ def page_model():
         | Split | Model | MedAPE % | Log RMSE | Bias |
         |---|---|:---:|:---:|:---:|
         | Validation | `lgb-hybrid-delta-tuned` | 13.60 | 0.4015 | -0.0415 |
-        | Test | `lgb-hybrid-delta-final` | 14.10 | 0.4387 | -0.0604 |
+        | Test | `lgb-hybrid-delta-tuned` | 14.10 | 0.4387 | -0.0604 |
         """)
 
     st.subheader("Residuals")
@@ -1092,19 +1113,14 @@ def page_model():
     st.subheader("Conclusion")
 
     st.markdown("""
-        On the test split, which was not used for tuning or early stopping, the median
-        error is 14.10%, the log RMSE is 0.4387 and the bias is -0.0604. When a previous
-        value exists the model tracks the next Transfermarkt value well, although most
-        of that accuracy comes from the previous value itself, and with no previous
-        value the median error is about 45%.
+    The model tracks the next Transfermarkt value well when a previous value exists, though most 
+    of that accuracy comes from the previous value itself, and it is much weaker for players with 
+    no history. 
 
-        The model stays close to the previous value, the way Transfermarkt itself tends
-        to, so a transfer, an injury or a breakout is invisible to it, and it comes in
-        about 6% low on average. There are few players that are near €200M, the highest
-        value in the data, so a prediction up there can run past the real value, and
-        predictions are not capped. The data is a snapshot from Transfermarkt that does
-        not update.
-        """)
+    The model stays close to the previous value, so a transfer, an injury or a breakout is 
+    invisible to it. Predictions are not capped, so near the €200M top of the data the it can run 
+    past the real value.
+    """)
 
 
 def page_about():
