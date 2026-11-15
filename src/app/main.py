@@ -32,7 +32,8 @@ COMPETITION_OVERRIDES = {
     "CGB": "Carabao Cup",
     "POCP": "Taca de Portugal",
 }
-COMPETITION_CONFENDERATION_ACRONYMS = {
+COMPETITION_ACRONYMS = {
+    # Confederations
     "fa",
     "efl",
     "dfb",
@@ -42,6 +43,8 @@ COMPETITION_CONFENDERATION_ACRONYMS = {
     "caf",
     "concacaf",
     "conmebol",
+    # Branded
+    "knvb"
 }
 
 NAME_FILTERS = {
@@ -145,7 +148,7 @@ def format_money(value) -> str:
 def format_competition_name(name: str) -> str:
     words = name.replace("-", " ").split()
     return " ".join(
-        w.upper() if w.lower() in COMPETITION_CONFENDERATION_ACRONYMS else w.title()
+        w.upper() if w.lower() in COMPETITION_ACRONYMS else w.title()
         for w in words
     )
 
@@ -989,13 +992,9 @@ def page_model():
 
         The final model is a lightly tuned version of `lgb-hybrid-delta`. Early stopping
         and the Optuna search both used the validation split, so its scores are optimistic, 
-        while the test split was scored once at the end. 
-        
-        Compared with validation, the median error moves by half a point, log RMSE rises about 
-        9% *(0.4015 to 0.4387)*, so the larger misses got a bit worse, and the bias goes from about 
-        4% too low to about 6% too low. The test scores are still better than the baseline's 20% 
-        median error and 0.551 log RMSE, although those baseline numbers come from the validation 
-        split because it was not run again on test.
+        while the test split was scored once at the end. Compared with validation, the median 
+        error moves by half a point, log RMSE rises about 9% *(0.4015 to 0.4387)*, so the larger 
+        misses got a bit worse, and the bias goes from about 4% too low to about 6% too low.
 
         | Split | Model | MedAPE % | Log RMSE | Bias |
         |---|---|:---:|:---:|:---:|
@@ -1073,15 +1072,14 @@ def page_model():
     st.markdown("""
         Each point is a test prediction, the dashed line is where the prediction matches
         the actual value, and the colour is the player's position. The spread widens as
-        the predicted value rises because the axis is in euros: a €10M miss is a
-        doubling on a €10M player and about 10% on a €100M player, so the right-hand
+        the predicted value rises because the axis is in euros, so the right-hand
         side looks worse than the 14% median error suggests, and the 6% low bias is too
         small to see at all. The parallel stripes between about €20M and €80M come from
         Transfermarkt values sitting on a short list of round numbers.
         """)
 
     st.markdown("""
-        Most of the points far from the cloud are below the line. The lowest is an
+        Most of the points far from the cloud are below the line. The lowest is Estevao, an
         attacker predicted under €20M with a residual near -€58M, so their real value was
         around €75M, and a few other attackers and midfielders are €30M to €50M too
         low, which might be after a transfer, an injury or a breakout that the model 
